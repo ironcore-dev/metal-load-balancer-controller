@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: metalbond
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: metalbond
+  template:
+    metadata:
+      labels:
+        name: metalbond
+    spec:
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          effect: NoSchedule
+          operator: Exists
+      initContainers:
+        - name: init-metalbond-tun
+          image: debian:bullseye
+          securityContext:
+            privileged: true
+          env:
+            - name: TUNNEL_IP
+              value: "dead::beef/112"
+          volumeMounts:
+            - name: usr-share
+              mountPath: /usr/share/metalbond
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              # Update apt cache and install iproute2
+              apt-get update
+              apt-get install -y iproute2 ethtool
+              # Directly add and configure the tunnel interface
+              ip link add overlay-tun type ip6tnl mode any external ttl 32
+              ip link set mtu 1500 dev overlay-tun
+              ip addr add $TUNNEL_IP dev overlay-tun
+              ip link set up dev overlay-tun
+              ethtool -K overlay-tun rx off tx off
+      containers:
+        - name: metalbond-client
+          image: ghcr.io/ironcore-dev/metalbond:sha-08c260c
+          securityContext:
+            privileged: true
+          env:
+            - name: METALBOND_SERVER
+              value: "[beef::dead]:4711"
+            - name: SUBSCRIBE_VNI
+              value: "50"
+            - name: ANNOUNCE_CFG
+              value: "50#dead::beef/112"
+            - name: TUNNEL_IP
+              value: "dead::beef/112"
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          volumeMounts:
+            - name: usr-share
+              mountPath: /usr/share/metalbond
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              ANNOUNCE_CFG="$ANNOUNCE_CFG#$NODE_IP"
+              /usr/sbin/metalbond client --server "$METALBOND_SERVER" --keepalive 5 --subscribe $SUBSCRIBE_VNI --announce $ANNOUNCE_CFG
+      volumes:
+        - name: usr-share
+          hostPath:
+            path: /usr/share/metalbond
+            type: DirectoryOrCreate
