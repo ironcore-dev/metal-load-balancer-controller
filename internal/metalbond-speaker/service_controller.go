@@ -14,7 +14,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // ServiceReconciler reconciles a Service object
@@ -66,6 +68,7 @@ func (r *ServiceReconciler) delete(_ context.Context, log logr.Logger, service *
 	if err := r.MetalBond.WithdrawRoute(metalbond.VNI(r.VNI), dest, nextHop); err != nil {
 		return ctrl.Result{}, err
 	}
+	log.V(1).Info("Removed route", "VNI", r.VNI, "Destination", dest, "NextHop", nextHop)
 
 	log.V(1).Info("Deleted Service")
 	return ctrl.Result{}, nil
@@ -97,6 +100,10 @@ func (r *ServiceReconciler) reconcile(_ context.Context, _ logr.Logger, service 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Service{}).
+		For(&corev1.Service{}, builder.WithPredicates(predicate.NewPredicateFuncs(
+			func(obj client.Object) bool {
+				service := obj.(*corev1.Service)
+				return service.Spec.Type == corev1.ServiceTypeLoadBalancer
+			}))).
 		Complete(r)
 }
