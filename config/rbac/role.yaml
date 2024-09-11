@@ -24,3 +24,21 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes/status
+  verbs:
+  - get
+  - patch
+  - update
