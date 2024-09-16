@@ -8,7 +8,7 @@ metadata:
   name: service-viewer-role
 rules:
 - apiGroups:
-  - metal.ironcore.dev
+  - ""
   resources:
   - services
   verbs:
@@ -16,7 +16,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - metal.ironcore.dev
+  - ""
   resources:
   - services/status
   verbs:
