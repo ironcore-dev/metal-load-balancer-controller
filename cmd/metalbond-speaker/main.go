@@ -4,9 +4,11 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -17,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -50,6 +53,7 @@ func main() {
 	var vni int
 	var metalbondServer string
 	var nodeAddress string
+	var metalbondConnectionTimeout = 20 * time.Second
 
 	flag.IntVar(&vni, "vni", 0, "VNI in which the route announcements should be done.")
 	flag.StringVar(&metalbondServer, "metalbond-server", "", "Endpoint of the metalbond server`")
@@ -85,6 +89,24 @@ func main() {
 
 	if err := mb.AddPeer(metalbondServer, ""); err != nil {
 		setupLog.Error(err, "unable to add metalbond peer")
+		os.Exit(1)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), metalbondConnectionTimeout)
+	defer cancel()
+
+	if err := wait.PollUntilContextTimeout(ctx,
+		1*time.Second,
+		metalbondConnectionTimeout,
+		true,
+		func(context.Context) (bool, error) {
+			state, err := mb.PeerState(metalbondServer)
+			if err != nil {
+				return false, err
+			}
+			return state == metalbond.ESTABLISHED, nil
+		}); err != nil {
+		setupLog.Error(err, "unable to add a metalbond peer", "Server", metalbondServer)
 		os.Exit(1)
 	}
 
