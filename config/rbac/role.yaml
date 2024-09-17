@@ -4,7 +4,9 @@ kind: ClusterRole
 metadata:
   name: manager-role
 rules:
-- resources:
+- apiGroups:
+  - ""
+  resources:
   - services
   verbs:
   - create
@@ -14,11 +16,15 @@ rules:
   - patch
   - update
   - watch
-- resources:
+- apiGroups:
+  - ""
+  resources:
   - services/finalizers
   verbs:
   - update
-- resources:
+- apiGroups:
+  - ""
+  resources:
   - services/status
   verbs:
   - get
