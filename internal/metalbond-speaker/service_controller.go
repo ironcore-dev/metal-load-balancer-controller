@@ -9,6 +9,7 @@ import (
 	"net/netip"
 
 	"github.com/go-logr/logr"
+	"github.com/ironcore-dev/controller-utils/clientutils"
 	"github.com/ironcore-dev/metalbond"
 	"github.com/ironcore-dev/metalbond/pb"
 	corev1 "k8s.io/api/core/v1"
@@ -28,6 +29,10 @@ type ServiceReconciler struct {
 	MetalBond   *metalbond.MetalBond
 	NodeAddress string
 }
+
+var (
+	ServiceFinalizer = "metal-loadbalancer.ironcore.dev/service"
+)
 
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services/status,verbs=get;update;patch
@@ -52,7 +57,7 @@ func (r *ServiceReconciler) reconcileExists(ctx context.Context, log logr.Logger
 	return r.reconcile(ctx, log, service)
 }
 
-func (r *ServiceReconciler) delete(_ context.Context, log logr.Logger, service *corev1.Service) (ctrl.Result, error) {
+func (r *ServiceReconciler) delete(ctx context.Context, log logr.Logger, service *corev1.Service) (ctrl.Result, error) {
 	log.V(1).Info("Deleting Service")
 
 	prefix := fmt.Sprintf("%s/128", service.Spec.ClusterIP)
@@ -70,14 +75,24 @@ func (r *ServiceReconciler) delete(_ context.Context, log logr.Logger, service *
 	}
 	log.V(1).Info("Removed route", "VNI", r.VNI, "Destination", dest, "NextHop", nextHop)
 
+	log.V(1).Info("Ensuring that the finalizer is removed")
+	if modified, err := clientutils.PatchEnsureNoFinalizer(ctx, r.Client, service, ServiceFinalizer); err != nil || modified {
+		return ctrl.Result{}, err
+	}
+
 	log.V(1).Info("Deleted Service")
 	return ctrl.Result{}, nil
 }
 
-func (r *ServiceReconciler) reconcile(_ context.Context, _ logr.Logger, service *corev1.Service) (ctrl.Result, error) {
+func (r *ServiceReconciler) reconcile(ctx context.Context, log logr.Logger, service *corev1.Service) (ctrl.Result, error) {
 	if service.Spec.Type != corev1.ServiceTypeLoadBalancer {
 		return ctrl.Result{}, nil
 	}
+
+	if modified, err := clientutils.PatchEnsureFinalizer(ctx, r.Client, service, ServiceFinalizer); err != nil || modified {
+		return ctrl.Result{}, err
+	}
+	log.V(1).Info("Ensured finalizer has been added")
 
 	prefix := fmt.Sprintf("%s/128", service.Spec.ClusterIP)
 	dest := metalbond.Destination{
@@ -90,8 +105,11 @@ func (r *ServiceReconciler) reconcile(_ context.Context, _ logr.Logger, service 
 		TargetVNI:     50,
 		Type:          pb.NextHopType_STANDARD,
 	}
-	if err := r.MetalBond.AnnounceRoute(metalbond.VNI(r.VNI), dest, nextHop); err != nil {
-		return ctrl.Result{}, err
+
+	if !r.MetalBond.IsRouteAnnounced(metalbond.VNI(r.VNI), dest, nextHop) {
+		if err := r.MetalBond.AnnounceRoute(metalbond.VNI(r.VNI), dest, nextHop); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil
