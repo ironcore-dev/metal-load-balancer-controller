@@ -18,8 +18,22 @@ spec:
       labels:
         control-plane: controller-manager
     spec:
-      securityContext:
-        runAsNonRoot: true
+      initContainers:
+        - name: init-metalbond-tun
+          image: debian:bullseye
+          securityContext:
+            privileged: true
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              # Update apt cache and install iproute2
+              apt-get update
+              apt-get install -y iproute2 ethtool
+              # Directly add and configure the tunnel interface
+              ip link add overlay-tun type ip6tnl mode any external ttl 32
+              ip link set mtu 1500 dev overlay-tun
+              ip link set up dev overlay-tun
+              ethtool -K overlay-tun rx off tx off
       containers:
       - name: manager
         image: controller:latest
