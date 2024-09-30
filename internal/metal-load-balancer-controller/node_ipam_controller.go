@@ -6,6 +6,7 @@ package metal_load_balancer_controller
 import (
 	"context"
 	"fmt"
+	"net"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,7 +38,13 @@ func (r *NodeIPAMReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	for _, addr := range node.Status.Addresses {
 		if addr.Type == corev1.NodeInternalIP {
-			podCIDR := fmt.Sprintf("%s/%d", addr.Address, r.NodeCIDRMaskSize)
+			ip := net.ParseIP(addr.Address)
+			if ip == nil {
+				return ctrl.Result{}, fmt.Errorf("invalid IP address format")
+			}
+
+			maskedIP := zeroHostBits(ip, r.NodeCIDRMaskSize)
+			podCIDR := fmt.Sprintf("%s/%d", maskedIP, r.NodeCIDRMaskSize)
 
 			nodeBase := node.DeepCopy()
 			node.Spec.PodCIDR = podCIDR
@@ -56,6 +63,16 @@ func (r *NodeIPAMReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func zeroHostBits(ip net.IP, maskSize int) net.IP {
+	if ip.To4() != nil {
+		mask := net.CIDRMask(maskSize, 32)
+		return ip.Mask(mask)
+	} else {
+		mask := net.CIDRMask(maskSize, 128)
+		return ip.Mask(mask)
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
