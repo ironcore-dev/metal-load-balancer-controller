@@ -36,8 +36,8 @@ var _ = Describe("Node IPAM Controller", func() {
 			DeferCleanup(k8sClient.Delete, node)
 
 			Eventually(Object(node)).Should(SatisfyAll(
-				HaveField("Spec.PodCIDR", Equal("1a10:c0de::1/64")),
-				HaveField("Spec.PodCIDRs", ContainElement("1a10:c0de::1/64")),
+				HaveField("Spec.PodCIDR", Equal("1a10:c0de::/64")),
+				HaveField("Spec.PodCIDRs", ContainElement("1a10:c0de::/64")),
 			))
 
 		})
