@@ -6,7 +6,7 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/ironcore-dev/controller-utils v0.9.3
 	github.com/ironcore-dev/metalbond v0.3.5
-	github.com/onsi/ginkgo/v2 v2.21.0
+	github.com/onsi/ginkgo/v2 v2.22.0
 	github.com/onsi/gomega v1.34.2
 	k8s.io/api v0.31.0
 	k8s.io/apimachinery v0.31.0
