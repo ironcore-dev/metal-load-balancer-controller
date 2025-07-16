@@ -67,7 +67,7 @@ func (r *ServiceReconciler) delete(ctx context.Context, log logr.Logger, service
 	}
 	nextHop := metalbond.NextHop{
 		TargetAddress: netip.MustParseAddr(r.NodeAddress),
-		TargetVNI:     50,
+		TargetVNI:     uint32(r.VNI),
 		Type:          pb.NextHopType_STANDARD,
 	}
 	if err := r.MetalBond.WithdrawRoute(metalbond.VNI(r.VNI), dest, nextHop); err != nil {
@@ -102,7 +102,7 @@ func (r *ServiceReconciler) reconcile(ctx context.Context, log logr.Logger, serv
 	}
 	nextHop := metalbond.NextHop{
 		TargetAddress: netip.MustParseAddr(r.NodeAddress),
-		TargetVNI:     50,
+		TargetVNI:     uint32(r.VNI),
 		Type:          pb.NextHopType_STANDARD,
 	}
 
