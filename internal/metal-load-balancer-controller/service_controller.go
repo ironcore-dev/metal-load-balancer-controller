@@ -5,6 +5,8 @@ package metal_load_balancer_controller
 
 import (
 	"context"
+	"fmt"
+	"net/netip"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -54,16 +56,40 @@ func (r *ServiceReconciler) reconcile(ctx context.Context, _ logr.Logger, servic
 		return ctrl.Result{}, nil
 	}
 
+	newServiceIP, err := generateServiceIP(service)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	serviceBase := service.DeepCopy()
 	service.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
 		{
-			IP: service.Spec.ClusterIP,
+			IP: newServiceIP,
 		},
 	}
 	if err := r.Status().Patch(ctx, service, client.MergeFrom(serviceBase)); err != nil {
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
+}
+
+func generateServiceIP(service *corev1.Service) (string, error) {
+	ip, err := netip.ParseAddr(service.Spec.ClusterIP)
+	if err != nil {
+		return "", fmt.Errorf("invalid ClusterIP format: %w", err)
+	}
+	if ip.Is4() {
+		return "", fmt.Errorf("IPv4 is not supported")
+	}
+
+	b := ip.As16()
+	// add plus one to the 14th byte to get a new IP for the service
+	b[13]++
+
+	if b[13] == 0 {
+		return "", fmt.Errorf("unsupported service range")
+	}
+	return netip.AddrFrom16(b).String(), nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
