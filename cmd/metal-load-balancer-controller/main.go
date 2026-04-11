@@ -43,17 +43,12 @@ func main() {
 	var enableLeaderElection bool
 	var leaderElectionNamespace string
 	var probeAddr string
-	var nodeCIDRMaskSize int
 	var secureMetrics bool
 	var enableHTTP2 bool
-	var allocateNodeCIDR bool
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.IntVar(&nodeCIDRMaskSize, "node-cidr-mask-size", 80, "Specifies the pod cidr mask size to be allocated to nodes.")
-	flag.BoolVar(&allocateNodeCIDR, "allocate-node-cidr", false,
-		"If set, PodCIDRs will be allocated to the Node.")
 	flag.BoolVar(&enableLeaderElection, "leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -146,16 +141,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	if allocateNodeCIDR {
-		if err = (&metalloadbalancercontroller.NodeIPAMReconciler{
-			Client:           mgr.GetClient(),
-			Scheme:           mgr.GetScheme(),
-			NodeCIDRMaskSize: nodeCIDRMaskSize,
-		}).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "NodeIPAM")
-			os.Exit(1)
-		}
-	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
