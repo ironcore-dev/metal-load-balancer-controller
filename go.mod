@@ -3,7 +3,7 @@ module github.com/ironcore-dev/metal-load-balancer-controller
 go 1.26.0
 
 require (
-	github.com/go-logr/logr v1.4.3
+	github.com/go-logr/logr v1.4.4
 	github.com/ironcore-dev/controller-utils v0.12.0
 	github.com/ironcore-dev/metalbond v0.5.0
 	github.com/onsi/ginkgo/v2 v2.32.0
