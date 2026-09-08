@@ -76,6 +76,14 @@ lint: golangci-lint ## Run golangci-lint linter
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
 
+.PHONY: add-license
+add-license: addlicense ## Add license headers to all go files.
+	find . -name '*.go' -exec "$(ADDLICENSE)" -f hack/license-header.txt {} +
+
+.PHONY: check-license
+check-license: addlicense ## Check that every file has a license header present.
+	find . -name '*.go' -exec "$(ADDLICENSE)" -check -c 'IronCore authors' {} +
+
 ##@ Build
 
 .PHONY: build
@@ -149,6 +157,7 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOIMPORTS ?= $(LOCALBIN)/goimports
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+ADDLICENSE ?= $(LOCALBIN)/addlicense
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.4.3
@@ -156,6 +165,7 @@ CONTROLLER_TOOLS_VERSION ?= v0.18.0
 ENVTEST_VERSION ?= release-0.21
 GOIMPORTS_VERSION ?= v0.34.0
 GOLANGCI_LINT_VERSION ?= v2.11
+ADDLICENSE_VERSION ?= v1.1.1
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -181,6 +191,11 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 goimports: $(GOIMPORTS) ## Download goimports locally if necessary.
 $(GOIMPORTS): $(LOCALBIN)
 	$(call go-install-tool,$(GOIMPORTS),golang.org/x/tools/cmd/goimports,$(GOIMPORTS_VERSION))
+
+.PHONY: addlicense
+addlicense: $(ADDLICENSE) ## Download addlicense locally if necessary.
+$(ADDLICENSE): $(LOCALBIN)
+	$(call go-install-tool,$(ADDLICENSE),github.com/google/addlicense,$(ADDLICENSE_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
