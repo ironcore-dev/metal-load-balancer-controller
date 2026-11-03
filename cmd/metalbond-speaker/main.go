@@ -89,7 +89,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := mb.AddPeer(metalbondServer, ""); err != nil {
+	if err := mb.AddPeer(metalbondServer, "", 100, 10, 50); err != nil {
 		setupLog.Error(err, "unable to add metalbond peer")
 		os.Exit(1)
 	}
