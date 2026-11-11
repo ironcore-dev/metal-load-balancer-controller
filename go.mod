@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/go-logr/logr v1.4.4
-	github.com/ironcore-dev/controller-utils v0.15.0
+	github.com/ironcore-dev/controller-utils v0.15.1
 	github.com/ironcore-dev/metalbond v0.6.2
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
